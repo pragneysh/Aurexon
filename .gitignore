@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+
+# Production build output
+dist/
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+
+# AWS/local credentials
+.aws/
+aws-credentials*
+credentials
+
+# Logs and transient local preview output
+*.log
+preview.out.log
+preview.err.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
