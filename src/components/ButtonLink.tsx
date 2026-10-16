@@ -6,6 +6,7 @@ type ButtonLinkProps = {
   children: React.ReactNode;
   variant?: 'primary' | 'secondary' | 'outline' | 'light';
   className?: string;
+  onClick?: () => void;
 };
 
 const variants = {
@@ -15,10 +16,11 @@ const variants = {
   light: 'border border-white/25 bg-white/10 text-white backdrop-blur hover:bg-white hover:text-brand-navy',
 };
 
-export default function ButtonLink({ to, children, variant = 'primary', className = '' }: ButtonLinkProps) {
+export default function ButtonLink({ to, children, variant = 'primary', className = '', onClick }: ButtonLinkProps) {
   return (
     <Link
       to={to}
+      onClick={onClick}
       className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-md px-5 py-3 text-sm font-bold transition ${variants[variant]} ${className}`}
     >
       {children}

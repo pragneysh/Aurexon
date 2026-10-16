@@ -1,4 +1,5 @@
-import { X } from 'lucide-react';
+import { ArrowUpRight, CheckCircle2, Maximize2, X } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { Product } from '../data/products';
 
@@ -8,60 +9,199 @@ type ProductModalProps = {
 };
 
 export default function ProductModal({ product, onClose }: ProductModalProps) {
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const [isFullScreen, setIsFullScreen] = useState(false);
+
+  useEffect(() => {
+    setActiveImageIndex(0);
+    setIsFullScreen(false);
+  }, [product]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (isFullScreen) setIsFullScreen(false);
+        else onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isFullScreen, onClose]);
+
   if (!product) return null;
 
+  const allImages = [product.image, ...(product.gallery || [])].filter(
+    (img, index, self) => self.indexOf(img) === index
+  );
+  const activeImage = allImages[activeImageIndex] || product.image;
+
   return (
-    <div className="fixed inset-0 z-[70] overflow-y-auto bg-brand-navy/80 p-4 backdrop-blur-sm" role="dialog" aria-modal="true">
-      <div className="mx-auto my-8 max-w-5xl overflow-hidden rounded-lg bg-white shadow-2xl">
-        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
-          <h2 className="text-xl font-black tracking-normal text-brand-navy">{product.title}</h2>
-          <button type="button" onClick={onClose} className="grid h-10 w-10 place-items-center rounded-md bg-slate-100 text-brand-navy" aria-label="Close product details">
+    <div
+      className="fixed inset-0 z-[70] flex items-center justify-center overflow-y-auto bg-brand-navy/85 p-3 sm:p-5 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      onClick={onClose}
+    >
+      <div
+        className="relative my-auto w-full max-w-4xl overflow-hidden rounded-xl bg-white shadow-2xl transition-all"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4 bg-slate-50/70">
+          <div>
+            <span className="text-xs font-bold uppercase tracking-wider text-brand-green">
+              {product.category} Scrap
+            </span>
+            <h2 className="text-xl font-black tracking-normal text-brand-navy sm:text-2xl">
+              {product.title}
+            </h2>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="grid h-10 w-10 place-items-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-100 hover:text-brand-navy"
+            aria-label="Close product details"
+          >
             <X className="h-5 w-5" />
           </button>
         </div>
-        <div className="grid gap-6 p-5 md:grid-cols-[1.05fr_0.95fr]">
-          <div className="grid gap-3">
-            <img src={product.gallery[0]} alt={product.title} className="aspect-[4/3] w-full rounded-lg object-cover" />
-            <div className="grid grid-cols-2 gap-3">
-              {product.gallery.slice(1).map((item) => (
-                <img key={item} src={item} alt={`${product.title} material view`} className="aspect-[4/3] rounded-lg object-cover" loading="lazy" />
-              ))}
+
+        {/* Modal Body */}
+        <div className="grid gap-6 p-6 md:grid-cols-[1.1fr_0.9fr]">
+          {/* Gallery View */}
+          <div className="flex flex-col gap-3">
+            <div className="relative aspect-[4/3] overflow-hidden rounded-lg bg-slate-950">
+              <img
+                src={activeImage}
+                alt={product.title}
+                className="h-full w-full object-cover"
+              />
+              <button
+                type="button"
+                onClick={() => setIsFullScreen(true)}
+                className="absolute bottom-3 right-3 flex h-9 w-9 items-center justify-center rounded-lg bg-black/60 text-white backdrop-blur-sm transition hover:bg-black/80"
+                title="View full resolution"
+              >
+                <Maximize2 className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Thumbnail selector */}
+            {allImages.length > 1 && (
+              <div className="flex gap-2.5 overflow-x-auto pb-1">
+                {allImages.map((img, idx) => (
+                  <button
+                    key={`${img}-${idx}`}
+                    type="button"
+                    onClick={() => setActiveImageIndex(idx)}
+                    className={`relative h-16 w-20 shrink-0 overflow-hidden rounded-md border-2 transition ${
+                      activeImageIndex === idx
+                        ? 'border-brand-green ring-2 ring-brand-green/30'
+                        : 'border-slate-200 opacity-70 hover:opacity-100'
+                    }`}
+                  >
+                    <img
+                      src={img}
+                      alt={`${product.title} thumbnail ${idx + 1}`}
+                      className="h-full w-full object-cover"
+                    />
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3.5 text-xs text-slate-600">
+              <strong className="text-brand-navy">Availability Notice:</strong> Sourced through live industrial channels. Material lots are subject to prior sale and live stock confirmation.
             </div>
           </div>
-          <div>
-            <p className="eyebrow text-brand-dark-green">Product Overview</p>
-            <p className="mt-3 leading-8 text-slate-600">{product.overview}</p>
-            <div className="mt-6 grid gap-4">
-              {[
-                ['Available specifications', 'Contact us for current specifications.'],
-                ['Packaging information', 'Shared according to current material lot and dispatch method.'],
-                ['Quantity / bulk supply', 'Bulk enquiries are welcome. Availability is confirmed before commitment.'],
-              ].map(([label, value]) => (
-                <div key={label} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                  <h3 className="font-bold text-brand-navy">{label}</h3>
-                  <p className="mt-1 text-sm leading-6 text-slate-600">{value}</p>
-                </div>
-              ))}
+
+          {/* Details & Specs */}
+          <div className="flex flex-col">
+            <div>
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                Product Description
+              </h3>
+              <p className="mt-2 text-sm leading-relaxed text-slate-700">
+                {product.overview || product.description}
+              </p>
             </div>
-            <h3 className="mt-6 font-bold text-brand-navy">Application / Use</h3>
-            <ul className="mt-3 grid gap-2 text-sm text-slate-600">
-              {product.applications.map((item) => (
-                <li key={item} className="flex gap-2">
-                  <span className="mt-2 h-2 w-2 rounded-full bg-brand-green" />
-                  {item}
-                </li>
-              ))}
-            </ul>
-            <Link
-              to={`/contact?material=${encodeURIComponent(product.title)}#quote`}
-              className="mt-7 inline-flex rounded-md bg-brand-green px-5 py-3 text-sm font-bold text-white transition hover:bg-brand-dark-green"
-              onClick={onClose}
-            >
-              Enquire Now
-            </Link>
+
+            {product.specifications && product.specifications.length > 0 && (
+              <div className="mt-5">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                  Material Details & Specifications
+                </h3>
+                <ul className="mt-2 space-y-2 text-xs text-slate-700">
+                  {product.specifications.map((spec) => (
+                    <li key={spec} className="flex items-start gap-2">
+                      <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand-green" />
+                      <span>{spec}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {product.applications && product.applications.length > 0 && (
+              <div className="mt-5">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                  Common Industrial Applications
+                </h3>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {product.applications.map((app) => (
+                    <span
+                      key={app}
+                      className="rounded-md bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700"
+                    >
+                      {app}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="mt-auto pt-6 flex flex-col sm:flex-row gap-3">
+              <Link
+                to={`/contact?material=${encodeURIComponent(product.title)}#quote`}
+                onClick={onClose}
+                className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-brand-green px-5 py-3 text-sm font-bold text-white shadow transition hover:bg-brand-dark-green"
+              >
+                Enquire for {product.title}
+                <ArrowUpRight className="h-4 w-4" />
+              </Link>
+              <button
+                type="button"
+                onClick={onClose}
+                className="rounded-lg border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-600 hover:bg-slate-100"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       </div>
+
+      {/* Fullscreen Lightbox Overlay */}
+      {isFullScreen && (
+        <div
+          className="fixed inset-0 z-[90] flex items-center justify-center bg-black/95 p-4"
+          onClick={() => setIsFullScreen(false)}
+        >
+          <button
+            type="button"
+            onClick={() => setIsFullScreen(false)}
+            className="absolute right-5 top-5 grid h-11 w-11 place-items-center rounded-full bg-white/20 text-white hover:bg-white/40"
+            aria-label="Exit fullscreen"
+          >
+            <X className="h-6 w-6" />
+          </button>
+          <img
+            src={activeImage}
+            alt={product.title}
+            className="max-h-[92vh] max-w-[92vw] object-contain"
+          />
+        </div>
+      )}
     </div>
   );
 }
