@@ -1,4 +1,4 @@
-import { CheckCircle2, ExternalLink, Layers, MapPin } from 'lucide-react';
+import { CheckCircle2, ExternalLink, Layers, MapPin, Phone } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import CTASection from '../components/CTASection';
 import FeatureBand from '../components/FeatureBand';
@@ -12,8 +12,9 @@ export default function About() {
   return (
     <>
       <SEO
-        title="About Aurexon International LLP | Global Metal Scrap Trading & Sourcing"
-        description="Learn about Aurexon International LLP, a global metal scrap trading, sourcing, and recycling support business dealing in aluminium, copper, brass, ferrous, and stainless steel materials."
+        title="About Us | Aurexon International LLP - Metal Scrap Trading"
+        description="Learn about Aurexon International LLP, a global metal scrap trading, sourcing, and recycling business with operations in Ahmedabad, India and Darıca, Turkey."
+        canonicalPath="/about"
       />
 
       <PageHeader
@@ -232,8 +233,20 @@ export default function About() {
                     {loc.fullAddress}
                   </p>
                 </div>
+                <div className="mt-4 border-t border-slate-200 pt-3">
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                    Office Phone ({loc.country})
+                  </p>
+                  <a
+                    href={`tel:${loc.phoneRaw}`}
+                    className="mt-1 inline-flex items-center gap-2 text-sm font-bold text-brand-navy hover:text-brand-green transition"
+                  >
+                    <Phone className="h-4 w-4 text-brand-green" />
+                    {loc.phone}
+                  </a>
+                </div>
               </div>
-              <div className="mt-6 pt-4">
+              <div className="mt-6 pt-4 border-t border-slate-200">
                 <a
                   href={loc.mapUrl}
                   target="_blank"

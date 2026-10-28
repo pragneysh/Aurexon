@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { officialEmails, officialPhones } from '../data/company';
 import FormField from './FormField';
+import { publicApi } from '../lib/publicApi';
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const phonePattern = /^[+()\-\s0-9]{7,}$/;
@@ -16,6 +18,7 @@ const standardMaterials = [
 
 export default function QuoteForm() {
   const [sent, setSent] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [searchParams] = useSearchParams();
   const requestedMaterial = searchParams.get('material') ?? '';
@@ -33,14 +36,19 @@ export default function QuoteForm() {
       id="quote"
       noValidate
       className="scroll-mt-28 rounded-xl bg-brand-navy p-6 sm:p-8 text-white shadow-industrial"
-      onSubmit={(event) => {
+      onSubmit={async (event) => {
         event.preventDefault();
         const form = event.currentTarget;
         const data = new FormData(form);
         const name = String(data.get('quoteName') ?? '').trim();
+        const company = String(data.get('quoteCompany') ?? '').trim();
         const phone = String(data.get('quotePhone') ?? '').trim();
         const email = String(data.get('quoteEmail') ?? '').trim();
+        const materialCategory = String(data.get('quoteMaterialCategory') ?? '').trim();
         const material = String(data.get('quoteMaterial') ?? '').trim();
+        const quantity = String(data.get('quoteQuantity') ?? '').trim();
+        const location = String(data.get('quoteLocation') ?? '').trim();
+        const message = String(data.get('quoteMessage') ?? '').trim();
 
         if (!name || !phone || !email || !material) {
           setSent(false);
@@ -61,7 +69,27 @@ export default function QuoteForm() {
         }
 
         setError('');
-        setSent(true);
+        setSubmitting(true);
+
+        try {
+          await publicApi.submitEnquiry({
+            type: 'quote',
+            fullName: name,
+            companyName: company,
+            email,
+            phone,
+            materialCategory,
+            materialSpecific: material,
+            quantityMT: quantity,
+            deliveryLocation: location,
+            message: message || `Quotation requested for ${material} (${quantity || 'unspecified quantity'}) to ${location || 'unspecified location'}.`,
+          });
+          setSent(true);
+        } catch (err: unknown) {
+          setError(err instanceof Error ? err.message : 'Quotation submission error. Please email us directly.');
+        } finally {
+          setSubmitting(false);
+        }
       }}
     >
       <p className="eyebrow text-brand-lime">Request a Quotation</p>
@@ -142,12 +170,22 @@ export default function QuoteForm() {
         </div>
       </div>
 
-      <button
-        type="submit"
-        className="mt-6 w-full sm:w-auto rounded-lg bg-brand-lime px-8 py-3.5 text-sm font-black text-brand-navy transition hover:bg-white shadow-md"
-      >
-        Submit Quote Request
-      </button>
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-4 border-t border-white/10 pt-5">
+        <button
+          type="submit"
+          disabled={submitting}
+          className="w-full sm:w-auto rounded-lg bg-brand-lime px-8 py-3.5 text-sm font-black text-brand-navy transition hover:bg-white shadow-md disabled:opacity-50"
+        >
+          {submitting ? 'Submitting Request...' : 'Submit Quote Request'}
+        </button>
+
+        <p className="text-xs text-white/70">
+          Direct desk email:{' '}
+          <a href={`mailto:${officialEmails[0].address}`} className="font-bold text-brand-lime hover:underline">
+            {officialEmails[0].address}
+          </a>
+        </p>
+      </div>
 
       {error && (
         <p className="mt-4 rounded-lg border border-red-300/40 bg-red-500/20 px-4 py-3 text-sm font-semibold text-white">
@@ -156,12 +194,23 @@ export default function QuoteForm() {
       )}
 
       {sent && (
-        <div className="mt-5 rounded-lg border border-brand-lime/40 bg-white/10 p-4 text-sm text-white">
-          <strong className="block font-bold text-brand-lime">
-            ✓ Quotation Request Form Validated
+        <div className="mt-5 rounded-lg border border-brand-lime/40 bg-white/10 p-5 text-sm text-white">
+          <strong className="block font-bold text-brand-lime text-base">
+            ✓ Quotation Request Submitted Successfully
           </strong>
-          <p className="mt-1 text-xs text-white/80 leading-relaxed">
-            All fields have been validated on the client side. Connect this form to an email gateway or backend API service to transmit production enquiries.
+          <p className="mt-1.5 text-xs text-white/80 leading-relaxed">
+            Thank you! Your quotation request has been transmitted directly to the Aurexon International LLP trading desk. Our team will review your specifications, current container freight, and confirm availability promptly. You can also reach us directly at{' '}
+            <a href={`mailto:${officialEmails[0].address}`} className="font-bold text-brand-lime underline">
+              {officialEmails[0].address}
+            </a>{' '}
+            or call India:{' '}
+            <a href={`tel:${officialPhones[0].phoneRaw}`} className="font-bold text-white underline">
+              {officialPhones[0].number}
+            </a>{' '}
+            / Turkey:{' '}
+            <a href={`tel:${officialPhones[1].phoneRaw}`} className="font-bold text-white underline">
+              {officialPhones[1].number}
+            </a>.
           </p>
         </div>
       )}

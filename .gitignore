@@ -3,6 +3,7 @@ node_modules/
 
 # Production build output
 dist/
+dist-live-backup/
 
 # Local environment and secrets
 .env
@@ -13,9 +14,13 @@ dist/
 .aws/
 aws-credentials*
 credentials
+.*-creds.json
+*.creds.json
+
 
 # Logs and transient local preview output
 *.log
+*.tmp
 preview.out.log
 preview.err.log
 npm-debug.log*
@@ -28,3 +33,9 @@ pnpm-debug.log*
 Thumbs.db
 .vscode/
 .idea/
+
+# Local audit and backup dumps
+backup/
+screenshots/
+cdk.out/
+

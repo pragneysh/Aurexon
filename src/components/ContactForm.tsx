@@ -1,5 +1,7 @@
 import { useState } from 'react';
+import { officialEmails, officialPhones } from '../data/company';
 import FormField from './FormField';
+import { publicApi } from '../lib/publicApi';
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const phonePattern = /^[+()\-\s0-9]{7,}$/;
@@ -15,19 +17,23 @@ const materialOptions = [
 
 export default function ContactForm() {
   const [sent, setSent] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
   return (
     <form
       noValidate
       className="rounded-xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm"
-      onSubmit={(event) => {
+      onSubmit={async (event) => {
         event.preventDefault();
         const form = event.currentTarget;
         const data = new FormData(form);
         const fullName = String(data.get('fullName') ?? '').trim();
+        const companyName = String(data.get('companyName') ?? '').trim();
         const email = String(data.get('email') ?? '').trim();
         const phone = String(data.get('phone') ?? '').trim();
+        const materialCategory = String(data.get('materialCategory') ?? '').trim();
+        const quantityMT = String(data.get('quantity') ?? '').trim();
         const message = String(data.get('message') ?? '').trim();
 
         if (!fullName || !email || !phone || !message) {
@@ -49,7 +55,25 @@ export default function ContactForm() {
         }
 
         setError('');
-        setSent(true);
+        setSubmitting(true);
+
+        try {
+          await publicApi.submitEnquiry({
+            type: 'contact',
+            fullName,
+            companyName,
+            email,
+            phone,
+            materialCategory,
+            quantityMT,
+            message,
+          });
+          setSent(true);
+        } catch (err: unknown) {
+          setError(err instanceof Error ? err.message : 'Submission error. Please email us directly.');
+        } finally {
+          setSubmitting(false);
+        }
       }}
     >
       <div className="grid gap-5 sm:grid-cols-2">
@@ -88,12 +112,25 @@ export default function ContactForm() {
         </div>
       </div>
 
-      <button
-        type="submit"
-        className="mt-6 rounded-lg bg-brand-green px-8 py-3.5 text-sm font-bold text-white transition hover:bg-brand-dark-green shadow"
-      >
-        Send Enquiry
-      </button>
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-4">
+        <button
+          type="submit"
+          disabled={submitting}
+          className="rounded-lg bg-brand-green px-8 py-3.5 text-sm font-bold text-white transition hover:bg-brand-dark-green shadow disabled:opacity-50"
+        >
+          {submitting ? 'Sending Enquiry...' : 'Send Enquiry'}
+        </button>
+
+        <p className="text-xs text-slate-500">
+          Or email directly:{' '}
+          <a
+            href={`mailto:${officialEmails[0].address}`}
+            className="font-bold text-brand-dark-green hover:underline"
+          >
+            {officialEmails[0].address}
+          </a>
+        </p>
+      </div>
 
       {error && (
         <p className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
@@ -102,10 +139,21 @@ export default function ContactForm() {
       )}
 
       {sent && (
-        <div className="mt-5 rounded-lg border border-brand-green/30 bg-brand-green/10 p-4 text-sm text-brand-dark-green">
-          <strong className="block font-bold">✓ Enquiry Validated (Client-side)</strong>
+        <div className="mt-5 rounded-lg border border-brand-green/30 bg-brand-green/10 p-5 text-sm text-brand-dark-green">
+          <strong className="block font-bold text-base">✓ Enquiry Submitted Successfully</strong>
           <p className="mt-1 text-xs leading-relaxed text-slate-700">
-            Form entries were validated successfully. In live production, connect this form to your email gateway or backend API endpoint to receive submissions directly.
+            Thank you! Your enquiry has been received and routed directly to the Aurexon International LLP sourcing desk. You can also reach our team immediately at{' '}
+            <a href={`mailto:${officialEmails[0].address}`} className="font-bold underline text-brand-dark-green">
+              {officialEmails[0].address}
+            </a>{' '}
+            or call India:{' '}
+            <a href={`tel:${officialPhones[0].phoneRaw}`} className="font-bold underline text-brand-navy">
+              {officialPhones[0].number}
+            </a>{' '}
+            / Turkey:{' '}
+            <a href={`tel:${officialPhones[1].phoneRaw}`} className="font-bold underline text-brand-navy">
+              {officialPhones[1].number}
+            </a>.
           </p>
         </div>
       )}

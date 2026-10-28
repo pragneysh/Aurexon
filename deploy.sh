@@ -1,9 +1,15 @@
-#!/bin/bash
-set -e
+#!/usr/bin/env bash
+# ==============================================================================
+# Aurexon International LLP — Production Deployment Script
+# ==============================================================================
+# Deploys production build from dist/ to private S3 bucket and invalidates
+# CloudFront edge caches.
+# ==============================================================================
+
+set -euo pipefail
 
 BUCKET="aurexon-website-prod"
 REGION="ap-south-1"
-WEBSITE_URL="http://${BUCKET}.s3-website.${REGION}.amazonaws.com"
 
 require_command() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -12,18 +18,27 @@ require_command() {
   fi
 }
 
-echo "Checking deployment prerequisites..."
+echo "=========================================================="
+echo " AUREXON — SECURE CLOUDFRONT + S3 DEPLOYMENT"
+echo "=========================================================="
+echo
+
+echo "[1/6] Checking deployment prerequisites..."
 require_command node
 require_command npm
 require_command aws
 
-echo "Verifying AWS CLI authentication..."
-aws sts get-caller-identity >/dev/null
+echo "[2/6] Verifying AWS CLI authentication..."
+CALLER_IDENTITY=$(aws sts get-caller-identity --output json)
+ACCOUNT_ID=$(node -e "console.log(JSON.parse(process.argv[1]).Account);" "$CALLER_IDENTITY")
+USER_ARN=$(node -e "console.log(JSON.parse(process.argv[1]).Arn);" "$CALLER_IDENTITY")
+echo "  Authenticated as: $USER_ARN (Account: $ACCOUNT_ID)"
 
-echo "Verifying S3 bucket access: ${BUCKET}"
+echo "[3/6] Verifying private S3 bucket access: ${BUCKET}..."
 aws s3api head-bucket --bucket "$BUCKET" >/dev/null
+echo "  S3 bucket '$BUCKET' confirmed accessible."
 
-echo "Building Aurexon production website..."
+echo "[4/6] Building Aurexon production website..."
 npm run build
 
 if [ ! -f "dist/index.html" ]; then
@@ -31,73 +46,85 @@ if [ ! -f "dist/index.html" ]; then
   exit 1
 fi
 
-echo "Configuring S3 static website hosting..."
-aws s3 website "s3://${BUCKET}" \
-  --index-document index.html \
-  --error-document index.html
-
-echo "Configuring bucket public access settings for direct S3 website hosting..."
-aws s3api put-public-access-block \
-  --bucket "$BUCKET" \
-  --public-access-block-configuration \
-  "BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=false,RestrictPublicBuckets=false"
-
-BUCKET_POLICY=$(cat <<EOF
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Sid": "PublicReadGetObject",
-      "Effect": "Allow",
-      "Principal": "*",
-      "Action": "s3:GetObject",
-      "Resource": "arn:aws:s3:::$BUCKET/*"
-    }
-  ]
-}
-EOF
-)
-
-echo "Applying read-only public bucket policy for website objects..."
-aws s3api put-bucket-policy \
-  --bucket "$BUCKET" \
-  --policy "$BUCKET_POLICY"
-
-echo "Deploying immutable Vite assets..."
+echo "[5/6] Synchronizing production assets to S3..."
+# Upload hashed immutable Vite assets with 1-year cache
+echo "  Uploading hashed assets (immutable cache)..."
 aws s3 sync dist/assets/ "s3://${BUCKET}/assets/" \
   --delete \
   --cache-control "public,max-age=31536000,immutable"
 
-echo "Deploying HTML, logo, and other public files..."
+# Upload HTML, images, and public files with no-cache revalidation
+echo "  Uploading HTML and public assets (no-cache revalidation)..."
 aws s3 sync dist/ "s3://${BUCKET}/" \
   --delete \
   --exclude "assets/*" \
   --cache-control "no-cache,no-store,must-revalidate"
 
-echo
-echo "Public S3 website hosting is enabled for temporary direct testing."
-echo "For final production, use CloudFront with HTTPS and a private S3 origin."
-echo
+# Upload extensionless route keys so CloudFront serves prerendered HTML directly on clean URLs
+echo "  Uploading clean extensionless route snapshots (/about, /products, /contact)..."
+aws s3 cp dist/about/index.html "s3://${BUCKET}/about" \
+  --content-type "text/html" \
+  --cache-control "no-cache,no-store,must-revalidate"
+aws s3 cp dist/products/index.html "s3://${BUCKET}/products" \
+  --content-type "text/html" \
+  --cache-control "no-cache,no-store,must-revalidate"
+aws s3 cp dist/contact/index.html "s3://${BUCKET}/contact" \
+  --content-type "text/html" \
+  --cache-control "no-cache,no-store,must-revalidate"
 
-if command -v curl >/dev/null 2>&1; then
-  echo "Verifying website response with curl..."
-  HTTP_STATUS="$(curl -I -L -s -o /dev/null -w "%{http_code}" "$WEBSITE_URL" || true)"
-  if [ "$HTTP_STATUS" = "200" ] || [ "$HTTP_STATUS" = "301" ] || [ "$HTTP_STATUS" = "302" ]; then
-    echo "Website verification: PASSED"
-  else
-    echo "Warning: Website verification returned HTTP status: ${HTTP_STATUS:-unavailable}"
+echo "[6/6] Invalidating CloudFront cache..."
+# Look up Distribution ID from environment variable or active distribution
+DISTRIBUTION_ID="${AWS_CLOUDFRONT_DISTRIBUTION_ID:-E1ZQHFKR1D7XNY}"
+DISTRIBUTION_DOMAIN=""
+
+if [ -z "$DISTRIBUTION_ID" ]; then
+  DIST_INFO=$(node -e "
+    const { execSync } = require('child_process');
+    try {
+      const out = JSON.parse(execSync('aws cloudfront list-distributions --output json').toString());
+      const items = out.DistributionList?.Items || [];
+      const match = items.find(d => {
+        const origins = d.Origins?.Items || [];
+        return origins.some(o => o.DomainName.includes('$BUCKET.s3'));
+      });
+      if (match) {
+        console.log(JSON.stringify({ id: match.Id, domain: match.DomainName }));
+      } else {
+        console.log(JSON.stringify({ id: '', domain: '' }));
+      }
+    } catch(e) {
+      console.log(JSON.stringify({ id: '', domain: '' }));
+    }
+  ")
+  DISTRIBUTION_ID=$(node -e "console.log(JSON.parse(process.argv[1]).id);" "$DIST_INFO")
+  DISTRIBUTION_DOMAIN=$(node -e "console.log(JSON.parse(process.argv[1]).domain);" "$DIST_INFO")
+fi
+
+if [ -n "$DISTRIBUTION_ID" ]; then
+  echo "  Creating invalidation for CloudFront distribution: $DISTRIBUTION_ID..."
+  INVALIDATION_ID=$(aws cloudfront create-invalidation \
+    --distribution-id "$DISTRIBUTION_ID" \
+    --paths "/*" \
+    --query "Invalidation.Id" \
+    --output text)
+  echo "  Invalidation submitted: $INVALIDATION_ID"
+  
+  if [ -z "$DISTRIBUTION_DOMAIN" ]; then
+    DISTRIBUTION_DOMAIN=$(aws cloudfront get-distribution --id "$DISTRIBUTION_ID" --query "Distribution.DomainName" --output text 2>/dev/null || echo "")
   fi
 else
-  echo "curl not found. Skipping optional website verification."
+  echo "  Warning: No CloudFront distribution ID found for '$BUCKET'."
+  echo "  Run './setup-cloudfront.sh' first to provision CloudFront with OAC."
 fi
 
 echo
-echo "========================================"
+echo "=========================================================="
 echo " AUREXON DEPLOYMENT SUCCESSFUL"
-echo "========================================"
-echo
-echo "Live Website:"
-echo
-echo "$WEBSITE_URL"
-echo
-echo "========================================"
+echo "=========================================================="
+if [ -n "$DISTRIBUTION_DOMAIN" ]; then
+  echo
+  echo "Live Secure Website:"
+  echo "  https://${DISTRIBUTION_DOMAIN}"
+  echo
+fi
+echo "=========================================================="

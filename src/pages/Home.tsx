@@ -5,6 +5,7 @@ import {
   Globe2,
   Leaf,
   MapPin,
+  Phone,
   Recycle,
 } from 'lucide-react';
 import { useState } from 'react';
@@ -63,34 +64,41 @@ const categoryCards = [
 export default function Home() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
-  // Selected sample products for preview (1 from each category)
+  // Selected sample products for preview across all primary categories
   const featuredProducts = products.filter((p) =>
-    ['alu-extrusion', 'cu-millberry', 'brass-yellow', 'ferrous-hms1', 'ss-304', 'alu-ubc', 'cu-tube', 'ss-316'].includes(p.id)
+    ['alu-6063-extrusion', 'cu-millberry', 'brass-honey', 'ferrous-hms', 'ss-304', 'alu-ubc', 'cu-tube-clean', 'ss-316'].includes(p.id)
   );
 
   return (
     <>
-      <SEO title={company.seo.title} description={company.seo.description} />
+      <SEO
+        title={company.seo.title}
+        description={company.seo.description}
+        canonicalPath="/"
+      />
 
       {/* Hero Section */}
       <section className="relative min-h-[calc(100vh-80px)] overflow-hidden bg-brand-navy text-white">
         <img
           src={images.hero}
           alt="Global metal scrap sourcing and recycling operations"
-          className="absolute inset-0 h-full w-full object-cover"
+          className="absolute inset-0 h-full w-full object-cover object-center"
+          loading="eager"
+          fetchPriority="high"
         />
-        <div className="absolute inset-0 bg-gradient-to-r from-brand-navy/95 via-brand-navy/85 to-brand-navy/50" />
-        <div className="absolute inset-0 industrial-grid opacity-20" />
+        {/* Directional Dark Gradient Overlay for Maximum Readability */}
+        <div className="absolute inset-0 hero-gradient-overlay" />
+        <div className="absolute inset-0 industrial-grid opacity-15" />
         <div className="relative mx-auto flex min-h-[calc(100vh-80px)] max-w-7xl items-center px-4 py-20 sm:px-6 lg:px-8">
           <div className="max-w-3xl">
             <div className="inline-flex items-center gap-2 rounded-full border border-brand-lime/30 bg-white/10 px-3.5 py-1.5 text-xs font-bold text-brand-lime backdrop-blur-sm">
               <Globe2 className="h-3.5 w-3.5" />
               <span>Ferrous & Non-Ferrous Metal Scrap Trading</span>
             </div>
-            <h1 className="mt-5 text-4xl font-black tracking-normal sm:text-5xl md:text-6xl lg:text-7xl">
+            <h1 className="mt-5 text-4xl font-black tracking-normal sm:text-5xl md:text-6xl lg:text-7xl drop-shadow-sm">
               Global Metal Scrap Solutions. Reliable Business Partnerships.
             </h1>
-            <p className="mt-6 max-w-2xl text-lg leading-8 text-white/80">
+            <p className="mt-6 max-w-2xl text-lg leading-8 text-white/95 font-medium">
               Explore aluminium, copper, brass, ferrous, and stainless steel scrap sourcing and trading solutions with Aurexon International LLP.
             </p>
             <div className="mt-8 flex flex-wrap gap-4">
@@ -225,7 +233,7 @@ export default function Home() {
             className="inline-flex items-center gap-2 font-bold text-brand-dark-green hover:text-brand-green"
             to="/products"
           >
-            Explore All 36 Materials <ArrowRight className="h-4 w-4" />
+            Explore All 48 Materials <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
@@ -316,8 +324,20 @@ export default function Home() {
                     {loc.fullAddress}
                   </p>
                 </div>
+                <div className="mt-4 border-t border-slate-200 pt-3">
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                    Office Phone ({loc.country})
+                  </p>
+                  <a
+                    href={`tel:${loc.phoneRaw}`}
+                    className="mt-1 inline-flex items-center gap-2 text-sm font-bold text-brand-navy hover:text-brand-green transition"
+                  >
+                    <Phone className="h-4 w-4 text-brand-green" />
+                    {loc.phone}
+                  </a>
+                </div>
               </div>
-              <div className="mt-6 pt-4">
+              <div className="mt-6 pt-4 border-t border-slate-200">
                 <a
                   href={loc.mapUrl}
                   target="_blank"

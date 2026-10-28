@@ -51,13 +51,31 @@ export default function ProductCard({ product, onView }: ProductCardProps) {
       </div>
 
       <div className="flex flex-1 flex-col p-5">
-        <h3
-          className="cursor-pointer text-lg font-black tracking-normal text-brand-navy hover:text-brand-green"
-          onClick={() => onView?.(product)}
-        >
-          {product.title}
-        </h3>
-        <p className="mt-2.5 line-clamp-2 text-sm leading-6 text-slate-600">
+        <div className="flex items-start justify-between gap-2">
+          <h3
+            className="cursor-pointer text-base sm:text-lg font-black tracking-normal text-brand-navy hover:text-brand-green line-clamp-1"
+            onClick={() => onView?.(product)}
+            title={product.title}
+          >
+            {product.title}
+          </h3>
+        </div>
+
+        {/* Technical Grade & ISRI Tag */}
+        <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[11px]">
+          {product.isriCode && (
+            <span className="rounded bg-slate-100 px-2 py-0.5 font-bold text-slate-700 border border-slate-200">
+              ISRI: {product.isriCode}
+            </span>
+          )}
+          {product.hsCode && (
+            <span className="rounded bg-slate-50 px-1.5 py-0.5 font-mono text-slate-500 border border-slate-200">
+              HS: {product.hsCode}
+            </span>
+          )}
+        </div>
+
+        <p className="mt-2.5 line-clamp-2 text-xs sm:text-sm leading-relaxed text-slate-600">
           {product.description}
         </p>
 

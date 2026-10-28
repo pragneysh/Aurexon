@@ -1,0 +1,10 @@
+# ==============================================================================
+# robots.txt for Aurexon International LLP
+# Official Domain: https://aurexoninternational.com/
+# ==============================================================================
+
+User-agent: *
+Allow: /
+
+# Sitemap Index
+Sitemap: https://aurexoninternational.com/sitemap.xml

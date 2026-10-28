@@ -4,7 +4,11 @@ import SEO from '../components/SEO';
 export default function NotFound() {
   return (
     <>
-      <SEO title="Page Not Found | Aurexon International LLP" description="The requested Aurexon page could not be found." />
+      <SEO
+        title="Page Not Found | Aurexon International LLP"
+        description="The requested page could not be found on Aurexon International."
+        noindex={true}
+      />
       <section className="grid min-h-[60vh] place-items-center px-4 text-center">
         <div>
           <p className="eyebrow text-brand-dark-green">404</p>
